@@ -1,7 +1,203 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reel Vault • Oat UI</title>
+  
+  <!-- ONLY Oat CDN (ultra-light ~8KB) -->
+  <link rel="stylesheet" href="https://unpkg.com/@knadh/oat/oat.min.css">
+  
+  <style>
+    body { padding: 2rem; max-width: 1280px; margin: 0 auto; font-family: system-ui; }
+    header { text-align: center; margin-bottom: 3rem; }
+    .controls { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2.5rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem; }
+    .reel-card { transition: all 0.25s ease; }
+    .reel-card:hover { transform: translateY(-10px); box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); }
+    .thumbnail { position: relative; aspect-ratio: 16/9; background: #111; border-radius: 14px; overflow: hidden; cursor: pointer; }
+    .thumbnail img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+    .reel-card:hover .thumbnail img { transform: scale(1.04); }
+    .play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 4.2rem; color: #fff; background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.65)); opacity: 0.9; }
+    .reel-card:hover .play { opacity: 1; }
+    .category { font-size: 2.1rem; margin: 3rem 0 1.2rem; font-weight: 600; }
+    .title { cursor: text; margin: 0.6rem 0 0.4rem; line-height: 1.3; }
+    .title:focus { outline: 2px solid #0ea5e9; border-radius: 6px; }
+  </style>
+</head>
 <body>
-<h1>Hello World</h1>
-<p>I'm hosted with GitHub Pages.</p>
+
+  <header>
+    <h1 style="font-size: 3.4rem;">🎥 Reel Vault</h1>
+    <p style="font-size: 1.3rem; opacity: 0.85;">Ultra-light CSV Gallery • Real thumbnails in <code>./img/</code> folder • 100% Oat UI</p>
+  </header>
+
+  <div class="controls">
+    <button onclick="document.getElementById('csvUpload').click()" data-variant="primary">📤 Upload CSV</button>
+    <input type="file" id="csvUpload" accept=".csv" style="display:none">
+    <button onclick="exportCSV()" data-variant="primary">💾 Export Updated CSV</button>
+    <button onclick="clearAll()" class="outline">Clear</button>
+  </div>
+
+  <div id="content"></div>
+
+  <!-- Oat JS -->
+  <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
+
+  <script>
+    let allData = [];
+
+    function getReelId(url) {
+      if (!url) return 'unknown';
+      try {
+        const u = new URL(url.startsWith('http') ? url : 'https://' + url);
+        // Instagram
+        if (u.hostname.includes('instagram')) {
+          const m = u.pathname.match(/reel\/([A-Za-z0-9_-]+)/);
+          return m ? m[1] : 'ig-' + Date.now();
+        }
+        // YouTube
+        if (u.hostname.includes('youtube') || u.hostname.includes('youtu.be')) {
+          let id = u.searchParams.get('v');
+          if (!id) id = u.pathname.split('/').pop().split('?')[0];
+          return id || 'yt-' + Date.now();
+        }
+        // Facebook
+        if (u.hostname.includes('facebook')) {
+          const m = u.pathname.match(/reel\/(\d+)/);
+          return m ? m[1] : 'fb-' + Date.now();
+        }
+        return 'other-' + btoa(url).replace(/[^a-z0-9]/gi,'').slice(0,16);
+      } catch(e) {
+        return 'other-' + Date.now();
+      }
+    }
+
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+      const result = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const item = {};
+        headers.forEach((h, j) => item[h] = values[j] || '');
+        item.reelId = getReelId(item.url);
+        result.push(item);
+      }
+      return result;
+    }
+
+    function groupByCategory(data) {
+      const groups = {};
+      data.forEach(item => {
+        const cat = (item.category || 'Uncategorized').trim();
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push(item);
+      });
+      return groups;
+    }
+
+    function handleThumbError(img, url, reelId) {
+      if (url.includes('youtube') || url.includes('youtu.be')) {
+        const ytId = getReelId(url);
+        img.src = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+      } else {
+        img.src = './img/failed.jpeg';
+      }
+      img.onerror = null; // prevent loop
+    }
+
+    function render() {
+      const groups = groupByCategory(allData);
+      const container = document.getElementById('content');
+      container.innerHTML = '';
+
+      if (allData.length === 0) {
+        container.innerHTML = `<p style="text-align:center;padding:6rem 2rem;opacity:0.7;font-size:1.2rem;">👉 Create folder <code>img</code> next to this file<br>Put <code>failed.jpeg</code> inside it<br>Upload your CSV or click "Load Demo"</p>`;
+        return;
+      }
+
+      Object.keys(groups).sort().forEach(cat => {
+        const items = groups[cat];
+        let html = `<details open><summary class="category">${cat} <small>(${items.length})</small></summary><div class="grid">`;
+
+        items.forEach((item, idx) => {
+          const globalIndex = allData.indexOf(item);
+          const reelId = item.reelId;
+          const localThumb = `./img/${reelId}.jpeg`;
+
+          html += `
+            <article class="card reel-card">
+              <div class="thumbnail" onclick="window.open('${item.url}','_blank')">
+                <img src="${localThumb}" alt="${item.title}" 
+                     onerror="handleThumbError(this, '${item.url}', '${reelId}')" loading="lazy">
+                <div class="play">▶</div>
+              </div>
+              <div style="padding:0.9rem 0.2rem 0.4rem">
+                <h3 class="title" contenteditable="true" spellcheck="false" 
+                    onblur="updateTitle(${globalIndex}, this)">${item.title}</h3>
+                <small style="opacity:0.75">${item.description}</small>
+              </div>
+            </article>`;
+        });
+
+        html += `</div></details>`;
+        container.innerHTML += html;
+      });
+    }
+
+    window.updateTitle = function(index, el) {
+      allData[index].title = el.textContent.trim();
+    };
+
+    window.openGramFetchr = function(url, reelId) {
+      window.open('https://gramfetchr.com/', '_blank');
+      alert(`✅ GramFetchr opened!\n\n1. Paste this URL:\n${url}\n\n2. Download the thumbnail (JPG)\n\n3. Rename the file EXACTLY to:\n${reelId}.jpeg\n\n4. Put it inside the "img" folder next to index.html\n\n5. Click "Refresh Thumbnails"`);
+    };
+
+    // Upload CSV
+    document.getElementById('csvUpload').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        allData = parseCSV(ev.target.result);
+        render();
+      };
+      reader.readAsText(file);
+    });
+
+    window.exportCSV = function() {
+      if (!allData.length) return alert("Nothing to export yet");
+      let csv = "category,title,url,thumbnail\n";
+      allData.forEach(item => {
+        const id = item.reelId || getReelId(item.url);
+        const thumbPath = `img/${id}.jpeg`;
+        csv += `"${(item.category || '').replace(/"/g,'""')}","${item.title.replace(/"/g,'""')}","${item.url}","${thumbPath}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'reels_updated.csv';
+      a.click();
+    };
+
+    window.refreshThumbs = function() {
+      render();
+    };
+
+    function clearAll() {
+      if (confirm("Clear everything?")) {
+        allData = [];
+        render();
+      }
+    }
+
+    // Start
+    window.onload = () => {
+      render();
+    };
+  </script>
 </body>
 </html>
