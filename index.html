@@ -29,12 +29,12 @@
 
   <header>
     <h1 style="font-size: 3.4rem;">🎥 Reel Vault</h1>
-    <p style="font-size: 1.3rem; opacity: 0.85;">Ultra-light CSV Gallery • Real thumbnails in <code>./img/</code> folder • 100% Oat UI</p>
+    <p style="font-size: 1.3rem; opacity: 0.85;">Ultra-light Gallery • CSV or XLS files • 100% Oat UI</p>
   </header>
 
   <div class="controls">
     <button onclick="document.getElementById('csvUpload').click()" data-variant="primary">📤 Upload CSV</button>
-    <input type="file" id="csvUpload" accept=".csv" style="display:none">
+    <input type="file" id="csvUpload" accept=".csv,.xls" style="display:none">
     <button onclick="exportCSV()" data-variant="primary">💾 Export Updated CSV</button>
     <button onclick="loadDemo()" data-variant="secondary">🎬 Load Demo</button>
     <button onclick="downloadSample()" class="outline">↓ Download Sample CSV</button>
