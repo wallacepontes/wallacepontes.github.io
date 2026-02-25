@@ -36,6 +36,8 @@
     <button onclick="document.getElementById('csvUpload').click()" data-variant="primary">📤 Upload CSV</button>
     <input type="file" id="csvUpload" accept=".csv" style="display:none">
     <button onclick="exportCSV()" data-variant="primary">💾 Export Updated CSV</button>
+    <button onclick="loadDemo()" data-variant="secondary">🎬 Load Demo</button>
+    <button onclick="downloadSample()" class="outline">↓ Download Sample CSV</button>
     <button onclick="clearAll()" class="outline">Clear</button>
   </div>
 
@@ -186,6 +188,36 @@
     window.refreshThumbs = function() {
       render();
     };
+
+// Load your exact demo data
+    function loadDemo() {
+      const demoCSV = `category,title,description,url
+Doce,Cheescake,COMO FAZER CHEESECAKE FÁCIL,https://youtu.be/m9N_lVWAdLY
+Bebida,Vinho,A Farsa da Indústria dos Vinhos,https://www.youtube.com/watch?v=J_E1fm4AcNw
+Bebida,Vinho,COMO É FEITO O VINHO,https://www.youtube.com/watch?v=kGY3KG3EdfE
+Salada,Quinoa e Linhaça,Salada quente de quinoa e linhaça thai no coco verde,https://youtu.be/56aDHEfb1SI
+Massa,Pizza Calabresa,Tradicional,https://www.youtube.com/watch?v=RlVl0JQX1wk
+Massa,Pão de massa mãe,Passo-a-passo,https://www.youtube.com/watch?v=WwX0PZJKICQ`;
+      
+      allData = parseCSV(demoCSV);
+      render();
+    }
+
+    function downloadSample() {
+      const csv = `category,title,description,url
+Doce,Cheescake,COMO FAZER CHEESECAKE FÁCIL,https://youtu.be/m9N_lVWAdLY
+Bebida,Vinho,A Farsa da Indústria dos Vinhos,https://www.youtube.com/watch?v=J_E1fm4AcNw
+Bebida,Vinho,COMO É FEITO O VINHO,https://www.youtube.com/watch?v=kGY3KG3EdfE
+Salada,Quinoa e Linhaça,Salada quente de quinoa e linhaça thai no coco verde,https://youtu.be/56aDHEfb1SI
+Massa,Pizza Calabresa,Tradicional,https://www.youtube.com/watch?v=RlVl0JQX1wk
+Massa,Pão de massa mãe,Passo-a-passo,https://www.youtube.com/watch?v=WwX0PZJKICQ`;
+      
+      const blob = new Blob([csv], {type: 'text/csv'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'reels.csv';
+      a.click();
+    }
 
     function clearAll() {
       if (confirm("Clear everything?")) {
